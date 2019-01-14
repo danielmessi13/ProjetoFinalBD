@@ -2,6 +2,13 @@
 returns trigger as $$
 begin 
 	if tg_op == 'INSERT':
+
+	if tg_op == 'UPDATE':
+		insert into movimentacao
+		new.valor
+		
+
+	if tg_op == 'DELETE':
 		
 	
 end $$ language plpgsql;

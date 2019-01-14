@@ -1,5 +1,5 @@
 ﻿create table agencia(
-cod_agencia serial not null primary key,
+cod_agencia serial not null primary key
 )
 
 create table cliente(
@@ -10,7 +10,8 @@ nome_cliente varchar(30) not null
 
 create table proprietario(
 cod_cliente int not null references cliente(cod_cliente),
-cod_conta int not null references conta(cod_conta)
+senha int not null references conta(senha),
+letras int not null references conta(letras)
 );
 
 
@@ -30,12 +31,28 @@ cod_tipo_conta serial not null primary key,
 descricao_conta varchar(40) not null
 );
 
+insert into agencia values(default)
+insert into conta values (123,'ABCDEF',default,1,1,200)
+select * from conta
+select * from movimentacao
+select * from tipo_movimentacao
+INSERT INTO TIPO_CONTA VALUES (1,'poupança')
+insert into tipo_movimentacao values (default,'saque')
+insert into tipo_movimentacao values (default,'deposito')
+
+
+
 
 create table movimentacao(
-cod_conta_principal int not null references conta(cod_conta), 
+senha_conta int, 
+letras_conta varchar(6), 
+cod_tipo_movimentacao int not null references tipo_movimentacao(cod_tipo_movimentacao), 
 data timestamp default current_timestamp,
+foreign key (senha_conta, letras_conta) references conta(senha,letras),
 valor float not null
 );
+
+drop table movimentacao
 
 
 create table tipo_movimentacao(

@@ -41,9 +41,16 @@ insert into tipo_movimentacao values (default,'saque')
 insert into tipo_movimentacao values (default,'deposito')
 
 
-
+-- acho que ta errado
+create table transferencia_movimentacao(
+senha_conta_tranferida int,
+letras_conta_tranferida varchar(6),
+cod_movimentacao int not null references movimentacao(cod_movimentacao),
+foreign key (senha_conta, letras_conta) references conta(senha,letras)
+)
 
 create table movimentacao(
+cod_movimentacao serial not null primary key,
 senha_conta int, 
 letras_conta varchar(6), 
 cod_tipo_movimentacao int not null references tipo_movimentacao(cod_tipo_movimentacao), 
@@ -63,8 +70,11 @@ descricao_tipo_movimentacao varchar(40) not null
 
 create table emprestimo(
 cod_emprestimo serial not null primary key,
-valor float not null,
-cod_tipo_emprestimo int not null references tipo_emprestimo(cod_tipo_emprestimo)
+valor_emprestimo float not null,
+senha_conta int, 
+letras_conta varchar(6), 
+cod_tipo_emprestimo int not null references tipo_emprestimo(cod_tipo_emprestimo),
+foreign key (senha_conta, letras_conta) references conta(senha,letras)
 )
 
 
@@ -73,6 +83,17 @@ cod_tipo_emprestimo serial not null primary key,
 descricao_tipo_emprestimo varchar(30) not null,
 taxa float not null
 ); 
+
+select * from emprestimo
+
+create table parcela(
+cod_parcela serial not null primary key,
+data_pagamento_parcela timestamp not null,
+valor_parcela float not null,
+cod_emprestimo int not null references emprestimo(cod_emprestimo)
+);
+
+
 
 
 create table funcionario(

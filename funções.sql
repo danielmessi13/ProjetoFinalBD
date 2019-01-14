@@ -66,3 +66,4 @@ end $$ language plpgsql;
 
 select depositar(10,'ABCDEF',123)
 select sacar(10,'ABCDEF',123)
+select fazer_emprestimo(200,'ABCDEF',123)

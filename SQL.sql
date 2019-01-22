@@ -1,4 +1,4 @@
-﻿create table agencia
+create table agencia
 (
   cod_agencia       serial not null primary key,
   descricao_agencia text not null
@@ -15,23 +15,18 @@ create table cliente
 create table proprietario
 (
   cpf    varchar(14) not null references cliente (cpf),
-  senha  int not null,
-  letras varchar(6) not null,
-  foreign key (senha, letras) references conta (senha, letras)
+  numero_conta int not null references conta (numero_conta)
 );
-
-select * from proprietario
 
 
 create table conta
 (
+  numero_conta 		serial not null primary key,
   senha             int,
-  letras            varchar(6),
   limite_emprestimo float default 500,
   cod_tipo_conta    int not null references tipo_conta (cod_tipo_conta),
   cod_agencia       int not null references agencia (cod_agencia),
-  saldo             int not null,
-  primary key (senha, letras)
+  saldo             int not null
 );
 
 
@@ -63,23 +58,17 @@ values (default, 'deposito')
 create table transferencia_movimentacao
 (
   senha_conta_tranferida  int,
-  letras_conta_tranferida varchar(6),
-  cod_movimentacao        int not null references movimentacao (cod_movimentacao),
-  foreign key (senha_conta, letras_conta) references conta (senha, letras)
+  numero_conta_trasferida int not null references conta (numero_conta),
 )
 
 create table movimentacao
 (
   cod_movimentacao      serial not null primary key,
-  senha_conta           int,
-  letras_conta          varchar(6),
+  numero_conta 			int not null references conta (numero_conta),
   cod_tipo_movimentacao int    not null references tipo_movimentacao (cod_tipo_movimentacao),
   data                  timestamp default current_timestamp,
-  foreign key (senha_conta, letras_conta) references conta (senha, letras),
   valor                 float  not null
 );
-
-drop table movimentacao
 
 
 create table tipo_movimentacao
@@ -93,8 +82,7 @@ create table emprestimo
 (
   cod_emprestimo      serial not null primary key,
   valor_emprestimo    float  not null,
-  senha_conta         int,
-  letras_conta        varchar(6),
+  numero_conta 		  int not null references conta (numero_conta),
   cod_tipo_emprestimo int    not null references tipo_emprestimo (cod_tipo_emprestimo),
   foreign key (senha_conta, letras_conta) references conta (senha, letras)
 )
@@ -107,8 +95,6 @@ create table tipo_emprestimo
   taxa                      float       not null
 );
 
-select *
-from emprestimo
 
 create table parcela
 (
@@ -126,8 +112,4 @@ create table funcionario
   nome_funcionario varchar(40) not null,
   cod_agencia      int         not null references agencia (cod_agencia)
 );
-
-
---- Triggers
-
 

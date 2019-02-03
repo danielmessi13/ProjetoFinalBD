@@ -4,7 +4,6 @@ create table agencia
   descricao_agencia text not null
 );
 
-
 create table cliente
 (
   cpf          varchar(14) not null primary key,
@@ -28,6 +27,7 @@ create table conta
   cod_agencia       int not null references agencia (cod_agencia),
   saldo             int not null
 );
+
 
 
 create table tipo_conta
@@ -54,7 +54,7 @@ insert into tipo_movimentacao
 values (default, 'deposito')
 
 
--- acho que ta errado
+-- acho que ta errado -- eu tenho é certeza
 create table transferencia_movimentacao
 (
   senha_conta_tranferida  int,
@@ -70,6 +70,23 @@ create table movimentacao
   valor                 float  not null
 );
 
+--acho q tem q ser assim
+create table movimentacao
+(
+  cod_movimentacao      serial not null primary key,
+  cod_tipo_movimentacao int    not null references tipo_movimentacao (cod_tipo_movimentacao),
+  data                  timestamp default current_timestamp
+);
+
+create table partes_movimentacao --precisa de um nome melhor
+(
+	cod_partes_movimentacao serial not null primary key,
+	cod_movimentacao 		int not null references movimentacao (cod_movimentacao),  
+	numero_conta 			int not null references conta (numero_conta),
+	valor                 	float  not null
+);--bom, parando pra pensar acho q ta errado tbm
+
+
 
 create table tipo_movimentacao
 (
@@ -83,9 +100,8 @@ create table emprestimo
   cod_emprestimo      serial not null primary key,
   valor_emprestimo    float  not null,
   numero_conta 		  int not null references conta (numero_conta),
-  cod_tipo_emprestimo int    not null references tipo_emprestimo (cod_tipo_emprestimo),
-  foreign key (senha_conta, letras_conta) references conta (senha, letras)
-)
+  cod_tipo_emprestimo int    not null references tipo_emprestimo (cod_tipo_emprestimo)
+);
 
 
 create table tipo_emprestimo

@@ -59,7 +59,6 @@ foreign key (senha_conta, letras_conta) references conta(senha,letras),
 valor float not null
 );
 
-drop table movimentacao
 
 
 create table tipo_movimentacao(

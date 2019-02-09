@@ -89,15 +89,18 @@ create table emprestimo
   numero_conta 		  int not null references conta (numero_conta),
   cod_tipo_emprestimo int    not null references tipo_emprestimo (cod_tipo_emprestimo)
 );
+drop table emprestimo;
 
 
 create table tipo_emprestimo
 (
   cod_tipo_emprestimo       serial      not null primary key,
   descricao_tipo_emprestimo varchar(30) not null,
-  numero_maximo_parcelas 	int not null,
+  numero_maximo_parcelas 	  int not null,
   taxa                      float       not null
 );
+
+drop table tipo_emprestimo;
 
 insert into tipo_emprestimo values (default, 'Consiguinado', 10, 20);
 
@@ -110,6 +113,7 @@ create table parcela
   cod_emprestimo         int       not null references emprestimo (cod_emprestimo)
 );
 
+drop table parcela;
 
 
 create table funcionario

@@ -83,6 +83,7 @@ begin
 									   valor,
 									   _conta,
 									   _tipo_emprestimo.cod_tipo_emprestimo) returning cod_emprestimo into _cod_emprestimo;
+		update conta set saldo = saldo + valor where numero_conta = _conta;
 		
 		--criar parcelas
 		data_parcela:= current_date + 30;
@@ -103,3 +104,7 @@ select * from parcela;
 select depositar(10,'ABCDEF',123);
 select sacar(10,'ABCDEF',123);
 select fazer_emprestimo(2000, 1, 1234, 'Consiguinado', 9);
+
+select * from emprestimo;
+select * from parcela;
+select * from conta;

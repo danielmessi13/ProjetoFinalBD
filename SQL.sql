@@ -4,12 +4,15 @@ create table agencia
   descricao_agencia text not null
 );
 
+insert into agencia values (default, 'Angical-PI');
+
 create table cliente
 (
   cpf          varchar(14) not null primary key,
   nome_cliente varchar(30) not null
 );
 
+insert into cliente values ('066.898.456-18', 'Daniel');
 
 create table proprietario
 (
@@ -28,38 +31,22 @@ create table conta
   saldo             int not null
 );
 
-
+insert into conta values (default, '1234', 3, 1, 1, 300);
 
 create table tipo_conta
 (
   cod_tipo_conta  serial      not null primary key,
   descricao_conta varchar(40) not null
 );
-
-insert into agencia
-values (default)
-insert into conta
-values (123, 'ABCDEF', default, 1, 1, 200)
-select *
-from conta
-select *
-from movimentacao
-select *
-from tipo_movimentacao INSERT INTO TIPO_CONTA
-VALUES (1,
-        'poupança')
-insert into tipo_movimentacao
-values (default, 'saque')
-insert into tipo_movimentacao
-values (default, 'deposito')
+insert into tipo_conta values (default, 'Conta Corrente');
 
 
 -- acho que ta errado -- eu tenho é certeza
 create table transferencia_movimentacao
 (
   senha_conta_tranferida  int,
-  numero_conta_trasferida int not null references conta (numero_conta),
-)
+  numero_conta_trasferida int not null references conta (numero_conta)
+);
 
 create table movimentacao
 (
@@ -108,8 +95,11 @@ create table tipo_emprestimo
 (
   cod_tipo_emprestimo       serial      not null primary key,
   descricao_tipo_emprestimo varchar(30) not null,
+  numero_maximo_parcelas 	int not null,
   taxa                      float       not null
 );
+
+insert into tipo_emprestimo values (default, 'Consiguinado', 10, 20);
 
 
 create table parcela

@@ -5,10 +5,9 @@ declare
 	_cod_tipo_movimentacao int;
 begin 
 	if exists(select * from conta where numero_conta = numero_da_conta and senha = senha_da_conta) then
-		select cod_tipo_movimentacao from tipo_movimentacao into _cod_tipo_movimentacao 
-		where descricao_tipo_movimentacao ilike 'Saque';
+		select cod_tipo_movimentacao into _cod_tipo_movimentacao from tipo_movimentacao where descricao_tipo_movimentacao ilike 'Saque';
 		
-		select * from conta into _conta where numero_conta = numero_da_conta and senha = senha_da_conta;
+		select * into _conta from conta where numero_conta = numero_da_conta and senha = senha_da_conta;
 		if valor <= 0 then
 			raise exception 'Você não pode sacar valores negativos ou nulos';
 		elsif _conta.saldo - valor < 0 then
@@ -37,10 +36,10 @@ declare
 	_cod_tipo_movimentacao int;
 begin 
 	if exists(select * from conta where numero_conta = numero_da_conta and senha = senha_da_conta) then
-		select cod_tipo_movimentacao from tipo_movimentacao into _cod_tipo_movimentacao 
+		select cod_tipo_movimentacao into _cod_tipo_movimentacao from tipo_movimentacao
 		where descricao_tipo_movimentacao ilike 'Deposito';
 
-		select * from conta into _conta where numero_conta = numero_da_conta and senha = senha_da_conta;
+		select * into _conta from conta where numero_conta = numero_da_conta and senha = senha_da_conta;
 		
 		if valor <= 0 then
 			raise exception 'Você não pode depositar valores negativos ou nulos';
@@ -62,23 +61,24 @@ end $$ language plpgsql;
 
 
 -----Emprestimo-----
-create or replace function fazer_emprestimo(valor int, numero_da_conta int, senha int, tipo_de_emprestimo varchar(30), numero_de_parcelas int)
+create or replace function fazer_emprestimo(valor int, numero_da_conta int, senha_da_conta int, tipo_de_emprestimo varchar(30), numero_de_parcelas int)
 returns void as $$
 declare
 	_conta int;
-	_tipo_empestimo record;
+	_tipo_emprestimo record;
 	_cod_emprestimo int;
 	data_parcela date;
 	valor_parcela float;
 begin
 
-	if numero_da_conta < 1 then
-		raise exception 'numero de parcelas invalidas';
 	if exists(select * from conta where numero_conta = numero_da_conta and senha = senha_da_conta) then
 	
 		--criar emprestimo
 		select numero_conta into _conta from conta where numero_conta = numero_da_conta;
-		select cod_tipo_emprestimo, taxa into _tipo_empestimo from tipo_emprestimo where descricao_tipo_emprestimo ilike tipo_de_emprestimo;
+		select cod_tipo_emprestimo, taxa, numero_maximo_parcelas into _tipo_emprestimo from tipo_emprestimo where descricao_tipo_emprestimo ilike tipo_de_emprestimo;
+		if numero_de_parcelas > _tipo_emprestimo.numero_maximo_parcelas or numero_de_parcelas < 1 then
+			raise exception 'Numero de parcelas invalido';
+		end if;
 		insert into emprestimo values (default,
 									   valor,
 									   _conta,
@@ -97,9 +97,9 @@ begin
 end $$ language plpgsql;
 
 
-
+select * from parcela;
 ---Testes
 
-select depositar(10,'ABCDEF',123)
-select sacar(10,'ABCDEF',123)
-select fazer_emprestimo(200,'ABCDEF',123)
+select depositar(10,'ABCDEF',123);
+select sacar(10,'ABCDEF',123);
+select fazer_emprestimo(2000, 1, 1234, 'Consiguinado', 9);

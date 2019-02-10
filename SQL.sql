@@ -1,9 +1,10 @@
-﻿create table agencia
+create table agencia
 (
   cod_agencia       serial not null primary key,
   descricao_agencia text not null
 );
 
+insert into agencia values (default, 'Angical-PI');
 
 create table cliente
 (
@@ -11,74 +12,66 @@ create table cliente
   nome_cliente varchar(30) not null
 );
 
+insert into cliente values ('066.898.456-18', 'Daniel');
 
 create table proprietario
 (
   cpf    varchar(14) not null references cliente (cpf),
-  senha  int not null,
-  letras varchar(6) not null,
-  foreign key (senha, letras) references conta (senha, letras)
+  numero_conta int not null references conta (numero_conta)
 );
-
-select * from proprietario
 
 
 create table conta
 (
+  numero_conta 		serial not null primary key,
   senha             int,
-  letras            varchar(6),
   limite_emprestimo float default 500,
   cod_tipo_conta    int not null references tipo_conta (cod_tipo_conta),
   cod_agencia       int not null references agencia (cod_agencia),
-  saldo             int not null,
-  primary key (senha, letras)
+  saldo             int not null
 );
 
+insert into conta values (default, '1234', 3, 1, 1, 300);
 
 create table tipo_conta
 (
   cod_tipo_conta  serial      not null primary key,
   descricao_conta varchar(40) not null
 );
-
-insert into agencia
-values (default)
-insert into conta
-values (123, 'ABCDEF', default, 1, 1, 200)
-select *
-from conta
-select *
-from movimentacao
-select *
-from tipo_movimentacao INSERT INTO TIPO_CONTA
-VALUES (1,
-        'poupança')
-insert into tipo_movimentacao
-values (default, 'saque')
-insert into tipo_movimentacao
-values (default, 'deposito')
+insert into tipo_conta values (default, 'Conta Corrente');
 
 
--- acho que ta errado
+-- acho que ta errado -- eu tenho é certeza
 create table transferencia_movimentacao
 (
   senha_conta_tranferida  int,
-  letras_conta_tranferida varchar(6),
-  cod_movimentacao        int not null references movimentacao (cod_movimentacao),
-  foreign key (senha_conta, letras_conta) references conta (senha, letras)
-)
+  numero_conta_trasferida int not null references conta (numero_conta)
+);
 
 create table movimentacao
 (
   cod_movimentacao      serial not null primary key,
-  senha_conta           int,
-  letras_conta          varchar(6),
+  numero_conta 			int not null references conta (numero_conta),
   cod_tipo_movimentacao int    not null references tipo_movimentacao (cod_tipo_movimentacao),
   data                  timestamp default current_timestamp,
-  foreign key (senha_conta, letras_conta) references conta (senha, letras),
   valor                 float  not null
 );
 
+--acho q tem q ser assim
+create table movimentacao
+(
+  cod_movimentacao      serial not null primary key,
+  cod_tipo_movimentacao int    not null references tipo_movimentacao (cod_tipo_movimentacao),
+  data                  timestamp default current_timestamp
+);
+
+create table partes_movimentacao --precisa de um nome melhor
+(
+	cod_partes_movimentacao serial not null primary key,
+	cod_movimentacao 		    int not null references movimentacao (cod_movimentacao),
+	numero_conta 			      int not null references conta (numero_conta),
+	valor                 	float  not null
+);--bom, parando pra pensar acho q ta errado tbm
 
 
 create table tipo_movimentacao
@@ -92,22 +85,24 @@ create table emprestimo
 (
   cod_emprestimo      serial not null primary key,
   valor_emprestimo    float  not null,
-  senha_conta         int,
-  letras_conta        varchar(6),
-  cod_tipo_emprestimo int    not null references tipo_emprestimo (cod_tipo_emprestimo),
-  foreign key (senha_conta, letras_conta) references conta (senha, letras)
-)
+  numero_conta 		  int not null references conta (numero_conta),
+  cod_tipo_emprestimo int    not null references tipo_emprestimo (cod_tipo_emprestimo)
+);
+drop table emprestimo;
 
 
 create table tipo_emprestimo
 (
   cod_tipo_emprestimo       serial      not null primary key,
   descricao_tipo_emprestimo varchar(30) not null,
+  numero_maximo_parcelas 	  int not null,
   taxa                      float       not null
 );
 
-select *
-from emprestimo
+drop table tipo_emprestimo;
+
+insert into tipo_emprestimo values (default, 'Consiguinado', 10, 20);
+
 
 create table parcela
 (
@@ -117,6 +112,7 @@ create table parcela
   cod_emprestimo         int       not null references emprestimo (cod_emprestimo)
 );
 
+drop table parcela;
 
 
 create table funcionario
@@ -125,8 +121,4 @@ create table funcionario
   nome_funcionario varchar(40) not null,
   cod_agencia      int         not null references agencia (cod_agencia)
 );
-
-
---- Triggers
-
 

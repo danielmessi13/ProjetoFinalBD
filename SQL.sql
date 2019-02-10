@@ -74,7 +74,6 @@ create table partes_movimentacao --precisa de um nome melhor
 );--bom, parando pra pensar acho q ta errado tbm
 
 
-
 create table tipo_movimentacao
 (
   cod_tipo_movimentacao       serial      not null primary key,

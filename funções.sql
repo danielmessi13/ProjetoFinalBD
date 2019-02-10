@@ -1,4 +1,5 @@
-create or replace function sacar(valor int, numero_da_conta int, senha_da_conta int) 
+--Sacar
+create or replace function sacar(valor float, numero_da_conta int, senha_da_conta int)
 returns void as $$
 declare
 	_conta record;
@@ -28,30 +29,35 @@ begin
 
 end $$ language plpgsql;
 
-
-create or replace function depositar(valor int, numero_da_conta int, senha_da_conta int) 
+--depositar ; não precisa da senha da conta
+create or replace function depositar(valor float, numero_da_conta int)
 returns void as $$
 declare
 	_conta record;
+	_dono record;
 	_cod_tipo_movimentacao int;
 begin 
-	if exists(select * from conta where numero_conta = numero_da_conta and senha = senha_da_conta) then
+	if exists(select * from conta where numero_conta = numero_da_conta) then
 		select cod_tipo_movimentacao into _cod_tipo_movimentacao from tipo_movimentacao
 		where descricao_tipo_movimentacao ilike 'Deposito';
 
-		select * into _conta from conta where numero_conta = numero_da_conta and senha = senha_da_conta;
+		select * into _conta from conta where numero_conta = numero_da_conta;
 		
 		if valor <= 0 then
 			raise exception 'Você não pode depositar valores negativos ou nulos';
 		else
-			update conta set saldo = saldo + valor where numero_conta = numero_da_conta and senha = senha_da_conta;
+		  select * into _dono from proprietario natural join cliente where numero_conta = numero_da_conta;
+			update conta set saldo = saldo + valor where numero_conta = numero_da_conta;
 
-			insert into movimentacao values(
-			_conta.senha,
-			_conta.letras,
-			_cod_tipo_movimentacao,
-			default,
-			valor);
+      --concatenar
+			--raise notice 'Deposito feito na conta de ' || _dono.nome_cliente || ', numero da conta:' || _conta.numero_conta;
+
+-- 			insert into movimentacao values(
+-- 			_conta.senha,
+-- 			_conta.letras,
+-- 			_cod_tipo_movimentacao,
+-- 			default,
+-- 			valor);
 		end if;
 	else
 		raise exception 'Numero da conta ou senha incorreta';
@@ -61,7 +67,7 @@ end $$ language plpgsql;
 
 
 -----Emprestimo-----
-create or replace function fazer_emprestimo(valor int, numero_da_conta int, senha_da_conta int, tipo_de_emprestimo varchar(30), numero_de_parcelas int)
+create or replace function fazer_emprestimo(valor float, numero_da_conta int, senha_da_conta int, tipo_de_emprestimo varchar(30), numero_de_parcelas int)
 returns void as $$
 declare
 	_conta int;
@@ -98,8 +104,80 @@ end $$ language plpgsql;
 
 
 select * from parcela;
+
+create or replace function ver_saldo(numero_da_conta int, senha_da_conta int) returns float as $$
+declare
+  _saldo float;
+begin
+  --Conta existe--
+  if exists(select * from conta where numero_conta = numero_da_conta and senha = senha_da_conta) then
+    select saldo into _saldo from conta where numero_conta = numero_da_conta and senha = senha_da_conta;
+    return _saldo;
+  end if;
+
+  raise exception 'Numero da conta ou senha incorreta';
+
+end
+$$ language 'plpgsql';
+
+create or replace function pagar_fatura(numero_da_conta int, senha_da_conta int, valor_fatura float) returns void as $$
+declare
+  _saldo float;
+begin
+  --Conta existe--
+  if exists(select * from conta where numero_conta = numero_da_conta and senha = senha_da_conta) then
+    select saldo into _saldo from conta where numero_conta = numero_da_conta and senha = senha_da_conta;
+    if valor_fatura <= saldo then
+      update conta set saldo = saldo - valor_fatura where numero_conta = numero_da_conta and senha = senha_da_conta;
+    end if;
+    raise exception 'Voce não tem saldo suficiente pra pagar essa fatura';
+  end if;
+
+  raise exception 'Numero da conta ou senha incorreta';
+
+end
+$$ language 'plpgsql';
+
+create or replace function transferencia(numero_da_conta1 int, senha_da_conta1 int, numero_da_conta2 int, valor float) returns void as $$
+declare
+  _conta record;
+begin
+  --Conta existe--
+  if exists(select * from conta where numero_conta = numero_da_conta1 and senha = senha_da_conta1) then
+-- 		select cod_tipo_movimentacao into _cod_tipo_movimentacao from tipo_movimentacao where descricao_tipo_movimentacao ilike 'Saque';
+
+		select * into _conta from conta where numero_conta = numero_da_conta and senha = senha_da_conta;
+		if valor <= 0 then
+			raise exception 'Você não pode transferir valores negativos ou nulos';
+		elsif _conta.saldo - valor < 0 then
+			raise exception 'Você não tem saldo suficiente pra transferir essa quantidade';
+		else
+			update conta set saldo = saldo - valor where numero_conta = numero_da_conta1 and senha = senha_da_conta1;
+			update conta set saldo = saldo + valor where numero_conta = numero_da_conta2;
+			insert into movimentacao values(
+			_conta.senha,
+			_conta.letras,
+			_cod_tipo_movimentacao,
+			default,
+			valor);
+
+		end if;
+	end if;
+
+  raise exception 'Numero da conta ou senha incorreta';
+
+end
+$$ language 'plpgsql';
+
+
 ---Testes
 
+
+--ver saldo ok
+--transferencia
+--ver extrato
+--pagar fatura ok
+--pagar parcela
 select depositar(10,'ABCDEF',123);
 select sacar(10,'ABCDEF',123);
 select fazer_emprestimo(2000, 1, 1234, 'Consiguinado', 9);

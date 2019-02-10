@@ -14,12 +14,14 @@ create table cliente
 
 insert into cliente values ('066.898.456-18', 'Daniel');
 
-create table proprietario
+create table tipo_conta
 (
-  cpf    varchar(14) not null references cliente (cpf),
-  numero_conta int not null references conta (numero_conta)
+  cod_tipo_conta  serial      not null primary key,
+  descricao_conta varchar(40) not null,
+  taxa_mensal int not null
 );
 
+insert into tipo_conta values (default, 'Conta Corrente');
 
 create table conta
 (
@@ -33,29 +35,37 @@ create table conta
 
 insert into conta values (default, '1234', 3, 1, 1, 300);
 
-create table tipo_conta
+create table proprietario
 (
-  cod_tipo_conta  serial      not null primary key,
-  descricao_conta varchar(40) not null
+  cpf    varchar(14) not null references cliente (cpf),
+  numero_conta int not null references conta (numero_conta)
 );
-insert into tipo_conta values (default, 'Conta Corrente');
+
+
+create table tipo_movimentacao
+(
+  cod_tipo_movimentacao       serial      not null primary key,
+  descricao_tipo_movimentacao varchar(40) not null
+);
+
+
 
 
 -- acho que ta errado -- eu tenho é certeza
-create table transferencia_movimentacao
-(
-  senha_conta_tranferida  int,
-  numero_conta_trasferida int not null references conta (numero_conta)
-);
+-- create table transferencia_movimentacao
+-- (
+--   senha_conta_tranferida  int,
+--   numero_conta_trasferida int not null references conta (numero_conta)
+-- );
 
-create table movimentacao
-(
-  cod_movimentacao      serial not null primary key,
-  numero_conta 			int not null references conta (numero_conta),
-  cod_tipo_movimentacao int    not null references tipo_movimentacao (cod_tipo_movimentacao),
-  data                  timestamp default current_timestamp,
-  valor                 float  not null
-);
+-- create table movimentacao
+-- (
+--   cod_movimentacao      serial not null primary key,
+--   numero_conta 			    int not null references conta (numero_conta),
+--   cod_tipo_movimentacao int    not null references tipo_movimentacao (cod_tipo_movimentacao),
+--   data                  timestamp default current_timestamp,
+--   valor                 float  not null
+-- );
 
 --acho q tem q ser assim
 create table movimentacao
@@ -73,13 +83,11 @@ create table partes_movimentacao --precisa de um nome melhor
 	valor                 	float  not null
 );--bom, parando pra pensar acho q ta errado tbm
 
+-- SUIAHEKLAWJEISAJE te fode
 
 
-create table tipo_movimentacao
-(
-  cod_tipo_movimentacao       serial      not null primary key,
-  descricao_tipo_movimentacao varchar(40) not null
-);
+
+
 
 
 create table emprestimo

@@ -68,8 +68,8 @@ create table movimentacao
 create table partes_movimentacao --precisa de um nome melhor
 (
 	cod_partes_movimentacao serial not null primary key,
-	cod_movimentacao 		int not null references movimentacao (cod_movimentacao),  
-	numero_conta 			int not null references conta (numero_conta),
+	cod_movimentacao 		    int not null references movimentacao (cod_movimentacao),
+	numero_conta 			      int not null references conta (numero_conta),
 	valor                 	float  not null
 );--bom, parando pra pensar acho q ta errado tbm
 

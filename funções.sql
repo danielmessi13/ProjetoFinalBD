@@ -3,6 +3,7 @@ returns void as $$
 declare
 	_conta record;
 	_cod_tipo_movimentacao int;
+  _cod_movimentacao int;
 begin 
 	if exists(select * from conta where numero_conta = numero_da_conta and senha = senha_da_conta) then
 		select cod_tipo_movimentacao into _cod_tipo_movimentacao from tipo_movimentacao where descricao_tipo_movimentacao ilike 'Saque';
@@ -14,12 +15,14 @@ begin
 			raise exception 'Você não tem saldo suficiente pra sacar essa quantidade';
 		else
 			update conta set saldo = saldo - valor where numero_conta = numero_da_conta and senha = senha_da_conta;
-			insert into movimentacao values(
-			_conta.senha,
-			_conta.letras,
-			_cod_tipo_movimentacao,
-			default,
-			valor);
+			insert into movimentacao values(default,
+																			_cod_tipo_movimentacao,
+																			default) returning cod_movimentacao into _cod_movimentacao;
+
+			insert into partes_movimentacao values (default,
+			                                        _cod_movimentacao,
+			                                        _conta.numero_conta,
+			                                        valor * -1);
 			
 		end if;
 	else
@@ -29,32 +32,68 @@ begin
 end $$ language plpgsql;
 
 
-create or replace function depositar(valor int, numero_da_conta int, senha_da_conta int) 
+create or replace function depositar(valor int, numero_da_conta int)
 returns void as $$
 declare
 	_conta record;
 	_cod_tipo_movimentacao int;
+  _cod_movimentacao int;
 begin 
-	if exists(select * from conta where numero_conta = numero_da_conta and senha = senha_da_conta) then
+	if exists(select * from conta where numero_conta = numero_da_conta) then
 		select cod_tipo_movimentacao into _cod_tipo_movimentacao from tipo_movimentacao
 		where descricao_tipo_movimentacao ilike 'Deposito';
 
-		select * into _conta from conta where numero_conta = numero_da_conta and senha = senha_da_conta;
+		select * into _conta from conta where numero_conta = numero_da_conta;
 		
 		if valor <= 0 then
 			raise exception 'Você não pode depositar valores negativos ou nulos';
 		else
-			update conta set saldo = saldo + valor where numero_conta = numero_da_conta and senha = senha_da_conta;
+			update conta set saldo = saldo + valor where numero_conta = numero_da_conta;
 
-			insert into movimentacao values(
-			_conta.senha,
-			_conta.letras,
-			_cod_tipo_movimentacao,
-			default,
-			valor);
+			insert into movimentacao values(default,
+																			_cod_tipo_movimentacao,
+																			default) returning cod_movimentacao into _cod_movimentacao;
+			insert into partes_movimentacao values (default,
+			                                        _cod_movimentacao,
+			                                        _conta.numero_conta,
+			                                        valor);
 		end if;
 	else
 		raise exception 'Numero da conta ou senha incorreta';
+	end if;
+
+end $$ language plpgsql;
+
+create function transferir(numero_conta_caridosa int, senha_conta_caridosa int, numero_conta_sortuda int, valor float)
+returns void as $$
+declare
+	_conta_caridosa record;
+  _cod_movimentacao int;
+  _cod_tipo_movimentacao int;
+  _cod_conta_sortuda int;
+begin
+	if exists(select * from conta where numero_conta = numero_conta_caridosa and senha = senha_conta_caridosa) and
+	   exists(select * from conta where numero_conta = numero_conta_sortuda) then
+
+	  select * into _conta_caridosa from conta where numero_conta = numero_conta_caridosa;
+		select numero_conta into _cod_conta_sortuda from conta where numero_conta = numero_conta_sortuda;
+		select cod_tipo_movimentacao from tipo_movimentacao where descricao_tipo_movimentacao = 'Transferencia';
+
+		if valor <= 0 then
+				raise exception 'Você não pode transferir valores negativos ou nulos';
+		elsif _conta_caridosa.saldo - valor < 0 then
+				raise exception 'Você não tem saldo suficiente pra transferir essa quantidade';
+		end if;
+
+		update conta set saldo = saldo + valor where numero_conta = numero_conta_sortuda;
+		update conta set saldo = saldo - valor where numero_conta = numero_conta_caridosa;
+
+		insert into movimentacao values (default, _cod_tipo_movimentacao, default) returning cod_movimentacao into _cod_movimentacao;
+		insert into partes_movimentacao values (default, _cod_movimentacao, _conta_caridosa.numero_conta, valor * -1);
+		insert into partes_movimentacao values (default, _cod_movimentacao, _cod_conta_sortuda, valor);
+
+	else
+	  raise exception 'Numero da conta ou senha incorreta';
 	end if;
 
 end $$ language plpgsql;
@@ -80,9 +119,10 @@ begin
 			raise exception 'Numero de parcelas invalido';
 		end if;
 		insert into emprestimo values (default,
-									   valor,
-									   _conta,
-									   _tipo_emprestimo.cod_tipo_emprestimo) returning cod_emprestimo into _cod_emprestimo;
+																	 valor,
+																	 _conta,
+																	 _tipo_emprestimo.cod_tipo_emprestimo)
+																	 returning cod_emprestimo into _cod_emprestimo;
 		update conta set saldo = saldo + valor where numero_conta = _conta;
 		
 		--criar parcelas
@@ -97,8 +137,6 @@ begin
 	end if;
 end $$ language plpgsql;
 
-
-select * from parcela;
 ---Testes
 
 select depositar(10,'ABCDEF',123);

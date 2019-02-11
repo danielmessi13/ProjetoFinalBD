@@ -23,12 +23,12 @@ create table proprietario
 
 create table conta
 (
-  numero_conta 		serial not null primary key,
+  numero_conta 		  serial not null primary key,
   senha             int,
   limite_emprestimo float default 500,
   cod_tipo_conta    int not null references tipo_conta (cod_tipo_conta),
   cod_agencia       int not null references agencia (cod_agencia),
-  saldo             int not null
+  saldo             float not null
 );
 
 insert into conta values (default, '1234', 3, 1, 1, 300);
@@ -51,7 +51,7 @@ create table transferencia_movimentacao
 create table movimentacao
 (
   cod_movimentacao      serial not null primary key,
-  numero_conta 			int not null references conta (numero_conta),
+  numero_conta 			      int not null references conta (numero_conta),
   cod_tipo_movimentacao int    not null references tipo_movimentacao (cod_tipo_movimentacao),
   data                  timestamp default current_timestamp,
   valor                 float  not null
@@ -85,8 +85,10 @@ create table emprestimo
 (
   cod_emprestimo      serial not null primary key,
   valor_emprestimo    float  not null,
-  numero_conta 		  int not null references conta (numero_conta),
-  cod_tipo_emprestimo int    not null references tipo_emprestimo (cod_tipo_emprestimo)
+  numero_conta 		    int not null references conta (numero_conta),
+  cod_tipo_emprestimo int    not null references tipo_emprestimo (cod_tipo_emprestimo),
+  data                timestamp default current_timestamp
+
 );
 drop table emprestimo;
 

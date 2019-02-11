@@ -102,7 +102,7 @@ end $$ language plpgsql;
 
 
 -----Emprestimo-----
-create or replace function fazer_emprestimo(valor int, numero_da_conta int, senha_da_conta int, tipo_de_emprestimo varchar(30), numero_de_parcelas int)
+create or replace function fazer_emprestimo(valor float, numero_da_conta int, senha_da_conta int, tipo_de_emprestimo varchar(30), numero_de_parcelas int)
 returns void as $$
 declare
 	_conta int;
@@ -152,12 +152,13 @@ returns void as $$
 			select * into _conta from conta where numero_conta = numero_da_conta;
 			select cod_emprestimo into _cod_emprestimo from emprestimo where numero_conta = numero_da_conta and data = (select min(data) from emprestimo where numero_conta = numero_da_conta);
 			select atualiza_emprestimo(_cod_emprestimo);
-			select * into _parcela from parcela where cod_emprestimo = _cod_emprestimo and data_pagamento_parcela = (select min(data_pagamento_parcela) from parcela where cod_emprestimo = _cod_emprestimo);
+			select * into _parcela from parcela where codigo_emprestimo = _cod_emprestimo and data_pagamento_parcela = (select min(data_pagamento_parcela) from parcela where codigo_emprestimo = _cod_emprestimo);
+
     	if _conta.saldo < _parcela.valor_parcela then
 				raise exception 'Saldo insuficiente';
 			else
     	  update conta set saldo = saldo - _parcela.valor_parcela where numero_conta = numero_da_conta;
-    	  --deletar a parcela, mais eu num sei deletar
+				delete from parcela where cod_parcela = _parcela.cod_parcela;
 			end if;
     else
       raise exception 'Numero da conta ou senha invalida';
@@ -183,10 +184,28 @@ end $$ language plpgsql;
 
 ---Testes
 
-select depositar(10,'ABCDEF',123);
-select sacar(10,'ABCDEF',123);
-select fazer_emprestimo(2000, 1, 1234, 'Consiguinado', 9);
+insert into cliente values ('123.123.123-45', 'Micael');
+insert into agencia values (default, 'Codó');
+insert into tipo_conta values (default, 'Corrente', 4, 1);
+insert into conta values (default, '123.123.123-45', 123, default, 1, 1, 10);
+insert into tipo_movimentacao values (default, 'Saque');
+insert into tipo_movimentacao values (default, 'Deposito');
+insert into tipo_movimentacao values (default, 'Transferencia');
 
+insert into tipo_emprestimo values (default, 'Consiguinado', 8, 30);
+
+select depositar(4000, 1);
+select sacar(10,'ABCDEF',123);
+select fazer_emprestimo(500, 1, 123, 'Consiguinado', 8);
+select pagar_emprestimo(1, 123);
+
+delete from emprestimo where cod_emprestimo = cod_emprestimo;
+delete from parcela where cod_parcela = cod_parcela;
+delete from movimentacao where cod_movimentacao = cod_movimentacao;
+delete from partes_movimentacao where cod_partes_movimentacao = cod_partes_movimentacao;
+
+
+select * from emprestimo;
+select * from conta;
 select * from agencia;
 select * from parcela;
-select * from conta;

@@ -2,6 +2,7 @@
 returns trigger as $$
 begin 
 	if tg_op = 'INSERT':
+	  --um cliente não pode ser dono e proprietario da mesma conta
 
 	if tg_op = 'UPDATE':
 
@@ -70,3 +71,5 @@ update emprestimo set valor_emprestimo = 0 where cod_emprestimo = 6;
 
 
 CREATE TRIGGER controle_emprestimo_trigger AFTER INSERT OR UPDATE OR DELETE ON emprestimo FOR EACH ROW EXECUTE PROCEDURE controle_emprestimo()
+
+drop trigger controle_emprestimo_trigger on emprestimo;

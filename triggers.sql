@@ -38,8 +38,8 @@ begin
 	if tg_op = 'INSERT' then
 		if new.valor_emprestimo > 500 then
 			raise exception 'Valor de emprestimo acima do limite';
-		elsif new.valor_emprestimo = 0 then
-			raise exception 'Quantidade insuficiente';
+		elsif new.valor_emprestimo <= 0 then
+			raise exception 'Quantidade invalida';
 		end if;
 
 		return new;
@@ -47,7 +47,7 @@ begin
 	elsif tg_op = 'UPDATE' then
 		if new.valor_emprestimo > 500 then
 			raise exception 'Valor de emprestimo acima do limite';
-		elsif new.valor_emprestimo = 0 then
+		elsif new.valor_emprestimo <= 0 then
 			delete from emprestimo where valor_emprestimo = 0;
 			raise notice 'Emprestimo quitado';
 		end if;

@@ -151,13 +151,14 @@ returns void as $$
 
 			select * into _conta from conta where numero_conta = numero_da_conta;
 			select cod_emprestimo into _cod_emprestimo from emprestimo where numero_conta = numero_da_conta and data = (select min(data) from emprestimo where numero_conta = numero_da_conta);
-			select atualiza_emprestimo(_cod_emprestimo);
+			perform atualiza_emprestimo(_cod_emprestimo);
 			select * into _parcela from parcela where codigo_emprestimo = _cod_emprestimo and data_pagamento_parcela = (select min(data_pagamento_parcela) from parcela where codigo_emprestimo = _cod_emprestimo);
 
     	if _conta.saldo < _parcela.valor_parcela then
 				raise exception 'Saldo insuficiente';
 			else
     	  update conta set saldo = saldo - _parcela.valor_parcela where numero_conta = numero_da_conta;
+    	  update emprestimo set valor_emprestimo = valor_emprestimo - _parcela.valor_parcela where cod_emprestimo = _cod_emprestimo;
 				delete from parcela where cod_parcela = _parcela.cod_parcela;
 			end if;
     else
@@ -173,13 +174,15 @@ declare
 	parcelita record;
 	dias_atrasada int;
 begin
-	for parcelita in (select * from parcela where cod_emprestimo = cod_emprestimo) loop
-		if parcelita.data_pagamento_parcela > current_date then
-			select parcelita.data_pagamento_parcela - current_date into dias_atrasada;
-			update parcela set valor_parcela = valor_parcela * (1 +(0.01 * dias_atrasada)), data_pagamento_parcela = data_pagamento_parcela + dias_atrasada;
+	for parcelita in (select * from parcela where codigo_emprestimo = cod_emprestimo) loop
+		if parcelita.data_pagamento_parcela < current_date then
+			select current_date - parcelita.data_pagamento_parcela into dias_atrasada;
+			update parcela set valor_parcela = valor_parcela * (1 +(0.01 * dias_atrasada::int)), data_pagamento_parcela = current_date;
 		end if;
 	end loop;
 end $$ language plpgsql;
+
+drop function atualiza_emprestimo(codigo_emprestimo int);
 
 
 ---Testes
@@ -196,16 +199,21 @@ insert into tipo_emprestimo values (default, 'Consiguinado', 8, 30);
 
 select depositar(4000, 1);
 select sacar(10,'ABCDEF',123);
-select fazer_emprestimo(500, 1, 123, 'Consiguinado', 8);
-select pagar_emprestimo(1, 123);
+select fazer_emprestimo(500, 9, 123, 'Consiguinado', 8);
+select pagar_emprestimo(9, 123);
 
+delete from conta where numero_conta = numero_conta;
+delete from cliente where cpf = cpf;
 delete from emprestimo where cod_emprestimo = cod_emprestimo;
 delete from parcela where cod_parcela = cod_parcela;
 delete from movimentacao where cod_movimentacao = cod_movimentacao;
 delete from partes_movimentacao where cod_partes_movimentacao = cod_partes_movimentacao;
+delete from agencia where cod_agencia = cod_agencia;
 
 
 select * from emprestimo;
 select * from conta;
 select * from agencia;
 select * from parcela;
+select * from cliente;
+select * from tipo_conta;

@@ -4,20 +4,11 @@ create table agencia
   descricao_agencia text not null
 );
 
-insert into agencia values (default, 'Angical-PI');
 
 create table cliente
 (
   cpf          varchar(14) not null primary key,
   nome_cliente varchar(30) not null
-);
-
-insert into cliente values ('066.898.456-18', 'Daniel');
-
-create table proprietario
-(
-  cpf    varchar(14) not null references cliente (cpf),
-  numero_conta int not null references conta (numero_conta)
 );
 
 create table tipo_conta
@@ -27,20 +18,26 @@ create table tipo_conta
   limite_de_saque int not null,
   porcetagem      int not null
 );
-insert into tipo_conta values (default, 'Conta Corrente');
 
 create table conta
 (
-numero_conta 		  serial not null primary key,
-dono              varchar(14) not null references cliente(cpf),
-senha             int not null ,
-limite_emprestimo float default 500,
-cod_tipo_conta    int not null references tipo_conta (cod_tipo_conta),
-cod_agencia       int not null references agencia (cod_agencia),
-saldo             float not null
+  numero_conta 		  serial not null primary key,
+  dono              varchar(14) not null references cliente(cpf),
+  senha             int not null ,
+  limite_emprestimo float default 500,
+  cod_tipo_conta    int not null references tipo_conta (cod_tipo_conta),
+  cod_agencia       int not null references agencia (cod_agencia),
+  saldo             float not null
 );
 
-insert into conta values (default, '1234', 3, 1, 1, 300);
+
+
+create table proprietario
+(
+cpf    varchar(14) not null references cliente (cpf),
+numero_conta int not null references conta (numero_conta)
+);
+
 
 
 create table tipo_movimentacao
@@ -74,7 +71,6 @@ create table tipo_emprestimo
   taxa                      float       not null
 );
 
-insert into tipo_emprestimo values (default, 'Consiguinado', 10, 20);
 
 create table emprestimo
 (
@@ -85,8 +81,6 @@ cod_tipo_emprestimo int    not null references tipo_emprestimo (cod_tipo_emprest
 data                timestamp default current_timestamp
 
 );
-drop table emprestimo;
-
 
 
 create table parcela
@@ -97,7 +91,6 @@ create table parcela
   codigo_emprestimo         int       not null references emprestimo (cod_emprestimo)
 );
 
-drop table parcela;
 
 
 create table funcionario

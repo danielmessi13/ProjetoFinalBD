@@ -1,11 +1,12 @@
 ﻿create or replace function teste_insert(nome_tabela text, atributos text)
-returns text as $$
+returns record as $$
 declare
 	inserir text;
+	retorno record;
 begin
-  inserir:= 'insert into ' || nome_tabela || ' values(' || atributos  || ');';
+  inserir:= 'insert into ' || nome_tabela || ' values(' || atributos  || ') returning * into retorno;';
   execute inserir;
-	return inserir;
+	return retorno;
 	
 end $$ language plpgsql;
 

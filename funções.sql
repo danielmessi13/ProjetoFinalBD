@@ -1,4 +1,6 @@
-create or replace function sacar(valor int, numero_da_conta int, senha_da_conta int) 
+
+
+create or replace function sacar(valor int, numero_da_conta int, senha_da_conta int)
 returns void as $$
 declare
 	_conta record;
@@ -137,12 +139,54 @@ begin
 	end if;
 end $$ language plpgsql;
 
+
+create or replace function pagar_emprestimo(numero_da_conta int, senha_da_conta int)
+returns void as $$
+  declare
+    _conta record;
+    _cod_emprestimo int;
+    _parcela record;
+  begin
+    if exists(select * from conta where numero_conta = numero_da_conta and senha = senha_da_conta) then
+
+			select * into _conta from conta where numero_conta = numero_da_conta;
+			select cod_emprestimo into _cod_emprestimo from emprestimo where numero_conta = numero_da_conta and data = (select min(data) from emprestimo where numero_conta = numero_da_conta);
+			select atualiza_emprestimo(_cod_emprestimo);
+			select * into _parcela from parcela where cod_emprestimo = _cod_emprestimo and data_pagamento_parcela = (select min(data_pagamento_parcela) from parcela where cod_emprestimo = _cod_emprestimo);
+    	if _conta.saldo < _parcela.valor_parcela then
+				raise exception 'Saldo insuficiente';
+			else
+    	  update conta set saldo = saldo - _parcela.valor_parcela where numero_conta = numero_da_conta;
+    	  --deletar a parcela, mais eu num sei deletar
+			end if;
+    else
+      raise exception 'Numero da conta ou senha invalida';
+		end if;
+	end;
+$$ language plpgsql;
+
+
+create or replace function atualiza_emprestimo(cod_emprestimo int)
+	returns void as $$
+declare
+	parcelita record;
+	dias_atrasada int;
+begin
+	for parcelita in (select * from parcela where cod_emprestimo = cod_emprestimo) loop
+		if parcelita.data_pagamento_parcela > current_date then
+			select parcelita.data_pagamento_parcela - current_date into dias_atrasada;
+			update parcela set valor_parcela = valor_parcela * (1 +(0.01 * dias_atrasada)), data_pagamento_parcela = data_pagamento_parcela + dias_atrasada;
+		end if;
+	end loop;
+end $$ language plpgsql;
+
+
 ---Testes
 
 select depositar(10,'ABCDEF',123);
 select sacar(10,'ABCDEF',123);
 select fazer_emprestimo(2000, 1, 1234, 'Consiguinado', 9);
 
-select * from emprestimo;
+select * from agencia;
 select * from parcela;
 select * from conta;

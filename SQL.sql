@@ -4,7 +4,6 @@ create table agencia
   descricao_agencia text not null
 );
 
-
 create table cliente
 (
   cpf          varchar(14) not null primary key,
@@ -27,9 +26,8 @@ create table conta
   limite_emprestimo float default 500,
   cod_tipo_conta    int not null references tipo_conta (cod_tipo_conta),
   cod_agencia       int not null references agencia (cod_agencia),
-  saldo             float not null
+  saldo             float default 0
 );
-
 
 
 create table proprietario

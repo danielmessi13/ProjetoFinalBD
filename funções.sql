@@ -1,3 +1,40 @@
+select criar_conta('Filipe', '123.123.123-46', 123, 'Corrente', 'Codó', 'Daniel');
+
+create or replace function criar_conta (nome varchar(30), cpf varchar(14), senha_da_conta int, descricao_do_tipo_conta varchar(40), nome_da_agencia text, nome_do_funcionario varchar(40))
+returns void as $$
+  declare
+    _agencia record;
+    _cod_tipo_conta int;
+    _funcionario record;
+  begin
+		if exists(select * from funcionario where nome_funcionario = nome_do_funcionario) then
+			select * into _funcionario from funcionario where nome_funcionario=  nome_do_funcionario;
+		else
+			raise exception 'Funcionario não cadastrado';
+		end if;
+
+		if exists(select * from agencia where descricao_agencia = nome_da_agencia)then
+      select * into _agencia from agencia where descricao_agencia = nome_da_agencia;
+    else
+		  raise exception 'Agencia inexistente';
+    end if;
+
+    if exists(select * from tipo_conta where descricao_conta = descricao_do_tipo_conta) then
+      select cod_tipo_conta into _cod_tipo_conta from tipo_conta where descricao_conta = descricao_do_tipo_conta;
+    else
+      raise exception 'tipo de conta inexistente';
+    end if;
+    if _funcionario.cod_agencia = _agencia.cod_agencia then
+      insert into cliente values (cpf, nome);
+			insert into conta values (default , cpf, senha_da_conta, default, _cod_tipo_conta, _agencia.cod_agencia);
+		ELSE
+		  RAISE exception 'funcionario não altorizado';
+		end if;
+
+
+	end;
+$$ language plpgsql;
+
 
 
 create or replace function sacar(valor int, numero_da_conta int, senha_da_conta int)
@@ -8,24 +45,27 @@ declare
   _cod_movimentacao int;
 begin 
 	if exists(select * from conta where numero_conta = numero_da_conta and senha = senha_da_conta) then
-		select cod_tipo_movimentacao into _cod_tipo_movimentacao from tipo_movimentacao where descricao_tipo_movimentacao ilike 'Saque';
-		
-		select * into _conta from conta where numero_conta = numero_da_conta and senha = senha_da_conta;
-		if valor <= 0 then
-			raise exception 'Você não pode sacar valores negativos ou nulos';
-		elsif _conta.saldo - valor < 0 then
-			raise exception 'Você não tem saldo suficiente pra sacar essa quantidade';
-		else
-			update conta set saldo = saldo - valor where numero_conta = numero_da_conta and senha = senha_da_conta;
-			insert into movimentacao values(default,
-																			_cod_tipo_movimentacao,
-																			default) returning cod_movimentacao into _cod_movimentacao;
+	  select cod_tipo_movimentacao into _cod_tipo_movimentacao from tipo_movimentacao where descricao_tipo_movimentacao ilike 'Saque';
+		if (select count(*) from partes_movimentacao natural join movimentacao where cod_tipo_movimentacao = _cod_tipo_movimentacao and numero_conta = numero_da_conta and data = current_date) < 4 then
+			select * into _conta from conta where numero_conta = numero_da_conta and senha = senha_da_conta;
+			if valor <= 0 then
+				raise exception 'Você não pode sacar valores negativos ou nulos';
+			elsif _conta.saldo - valor < 0 then
+				raise exception 'Você não tem saldo suficiente pra sacar essa quantidade';
+			else
+				update conta set saldo = saldo - valor where numero_conta = numero_da_conta and senha = senha_da_conta;
+				insert into movimentacao values(default,
+																				_cod_tipo_movimentacao,
+																				default) returning cod_movimentacao into _cod_movimentacao;
 
-			insert into partes_movimentacao values (default,
-			                                        _cod_movimentacao,
-			                                        _conta.numero_conta,
-			                                        valor * -1);
-			
+				insert into partes_movimentacao values (default,
+																								_cod_movimentacao,
+																								_conta.numero_conta,
+																								valor * -1);
+
+			end if;
+		else
+		  raise exception 'numero maximo de saques exedido';
 		end if;
 	else
 		raise exception 'Numero da conta ou senha incorreta';
@@ -66,7 +106,7 @@ begin
 
 end $$ language plpgsql;
 
-create function transferir(numero_conta_caridosa int, senha_conta_caridosa int, numero_conta_sortuda int, valor float)
+create or replace function transferir(numero_conta_caridosa int, senha_conta_caridosa int, numero_conta_sortuda int, valor float)
 returns void as $$
 declare
 	_conta_caridosa record;
@@ -116,7 +156,11 @@ begin
 	
 		--criar emprestimo
 		select numero_conta into _conta from conta where numero_conta = numero_da_conta;
-		select cod_tipo_emprestimo, taxa, numero_maximo_parcelas into _tipo_emprestimo from tipo_emprestimo where descricao_tipo_emprestimo ilike tipo_de_emprestimo;
+		if exists(select * from tipo_emprestimo where descricao_tipo_emprestimo ilike tipo_de_emprestimo) then
+			select cod_tipo_emprestimo, taxa, numero_maximo_parcelas into _tipo_emprestimo from tipo_emprestimo where descricao_tipo_emprestimo ilike tipo_de_emprestimo;
+		else
+		  raise exception 'tipo de emprestimo não valido';
+		end if;
 		if numero_de_parcelas > _tipo_emprestimo.numero_maximo_parcelas or numero_de_parcelas < 1 then
 			raise exception 'Numero de parcelas invalido';
 		end if;
@@ -176,8 +220,8 @@ declare
 begin
 	for parcelita in (select * from parcela where codigo_emprestimo = cod_emprestimo) loop
 		if parcelita.data_pagamento_parcela < current_date then
-			select current_date - parcelita.data_pagamento_parcela into dias_atrasada;
-			update parcela set valor_parcela = valor_parcela * (1 +(0.01 * dias_atrasada::int)), data_pagamento_parcela = current_date;
+			select current_date - parcelita.data_pagamento_parcela into cast(dias_atrasada);
+			update parcela set valor_parcela = valor_parcela * (1 +(0.01 * dias_atrasada)), data_pagamento_parcela = current_date;
 		end if;
 	end loop;
 end $$ language plpgsql;
@@ -189,18 +233,22 @@ drop function atualiza_emprestimo(codigo_emprestimo int);
 
 insert into cliente values ('123.123.123-45', 'Micael');
 insert into agencia values (default, 'Codó');
-insert into tipo_conta values (default, 'Corrente', 4, 1);
+insert into tipo_conta values (default, 'Corrente', 1, 1);
 insert into conta values (default, '123.123.123-45', 123, default, 1, 1, 10);
 insert into tipo_movimentacao values (default, 'Saque');
 insert into tipo_movimentacao values (default, 'Deposito');
 insert into tipo_movimentacao values (default, 'Transferencia');
 
+insert into funcionario values (default, 'Daniel', 1);
+
 insert into tipo_emprestimo values (default, 'Consiguinado', 8, 30);
+
+insert into parcela values (default,  current_date - 10,  30, 1);
 
 select depositar(4000, 1);
 select sacar(10,'ABCDEF',123);
-select fazer_emprestimo(500, 9, 123, 'Consiguinado', 8);
-select pagar_emprestimo(9, 123);
+select fazer_emprestimo(500, 1, 123, 'Consiguinado', 5);
+select pagar_emprestimo(1, 123);
 
 delete from conta where numero_conta = numero_conta;
 delete from cliente where cpf = cpf;
@@ -209,11 +257,32 @@ delete from parcela where cod_parcela = cod_parcela;
 delete from movimentacao where cod_movimentacao = cod_movimentacao;
 delete from partes_movimentacao where cod_partes_movimentacao = cod_partes_movimentacao;
 delete from agencia where cod_agencia = cod_agencia;
+delete from funcionario where cod_funcionario = cod_funcionario;
 
 
-select * from emprestimo;
-select * from conta;
 select * from agencia;
-select * from parcela;
 select * from cliente;
 select * from tipo_conta;
+select * from conta;
+select * from proprietario;
+select * from tipo_movimentacao;
+select * from movimentacao;
+select * from partes_movimentacao;
+select * from tipo_emprestimo;
+select * from emprestimo;
+select * from parcela;
+select * from funcionario;
+
+drop table agencia cascade ;
+drop table cliente cascade ;
+drop table tipo_conta cascade ;
+drop table conta cascade ;
+drop table proprietario cascade ;
+drop table tipo_movimentacao cascade ;
+drop table movimentacao cascade ;
+drop table partes_movimentacao cascade ;
+drop table tipo_emprestimo cascade ;
+drop table emprestimo cascade ;
+drop table parcela cascade ;
+drop table funcionario cascade ;
+

@@ -241,8 +241,9 @@ declare
 begin
 	for parcelita in (select * from parcela where codigo_emprestimo = cod_emprestimo) loop
 		if parcelita.data_pagamento_parcela < current_date then
-			select current_date - parcelita.data_pagamento_parcela into cast(dias_atrasada);
-			update parcela set valor_parcela = valor_parcela * (1 +(0.01 * dias_atrasada)), data_pagamento_parcela = current_date;
+			select extract(days from (current_date - parcelita.data_pagamento_parcela)) into dias_atrasada;
+			raise notice '%', dias_atrasada;
+			update parcela set valor_parcela = valor_parcela * (1 +(0.01 * dias_atrasada)), data_pagamento_parcela = current_date where cod_parcela = parcelita.cod_parcela;
 		end if;
 	end loop;
 end $$ language plpgsql;

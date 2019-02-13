@@ -1,4 +1,4 @@
-select criar_conta('Filipe', '123.123.123-46', 123, 'Corrente', 'Codó', 'Daniel');
+﻿select criar_conta('Filipe', '123.123.123-46', 123, 'Corrente', 'Codó', 'Daniel');
 
 create or replace function criar_conta (nome varchar(30), cpf varchar(14), senha_da_conta int, descricao_do_tipo_conta varchar(40), nome_da_agencia text, nome_do_funcionario varchar(40))
 returns void as $$
@@ -184,10 +184,11 @@ begin
 end $$ language plpgsql;
 
 
-create or replace function pagar_emprestimo(numero_da_conta int, senha_da_conta int)
+create or replace function pagar_emprestimo(numero_da_conta int, senha_da_conta int, nome_func varchar(40) default '')
 returns void as $$
   declare
     _conta record;
+    _funcionario record;
     _cod_emprestimo int;
     _parcela record;
   begin
@@ -198,6 +199,24 @@ returns void as $$
 			perform atualiza_emprestimo(_cod_emprestimo);
 			select * into _parcela from parcela where codigo_emprestimo = _cod_emprestimo and data_pagamento_parcela = (select min(data_pagamento_parcela) from parcela where codigo_emprestimo = _cod_emprestimo);
 
+      if _parcela.data_pagamento_parcela > current_date then
+        raise notice 'Parcela atrasada';
+        if nome_func = '' then
+          raise exception 'Parcelas atrasadas precisam ser pagas junto com o funcionario';
+        else
+          if exists(select * from funcionario where nome_funcionario = nome_func) then
+            select * into _funcionario from funcionario where nome_funcionario = nome_func;
+            if _conta.cod_agencia != _funcionario.cod_agencia then
+              raise exception 'Funcionario precisa ser da mesma agencia';
+            end if;
+
+          else
+            raise exception 'Funcionario não existe';
+          end if;
+
+        end if;
+      end if;
+
     	if _conta.saldo < _parcela.valor_parcela then
 				raise exception 'Saldo insuficiente';
 			else
@@ -205,9 +224,11 @@ returns void as $$
     	  update emprestimo set valor_emprestimo = valor_emprestimo - _parcela.valor_parcela where cod_emprestimo = _cod_emprestimo;
 				delete from parcela where cod_parcela = _parcela.cod_parcela;
 			end if;
+
     else
       raise exception 'Numero da conta ou senha invalida';
 		end if;
+
 	end;
 $$ language plpgsql;
 

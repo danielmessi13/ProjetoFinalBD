@@ -68,10 +68,12 @@ begin
 			insert into movimentacao values(default,
 																			_cod_tipo_movimentacao,
 																			default) returning cod_movimentacao into _cod_movimentacao;
-			insert into partes_movimentacao values (default,
-			                                        _cod_movimentacao,
-			                                        _conta.numero_conta,
-			                                        valor);
+			perform insert_generico('partes_movimentacao', 'default, '
+			                                                 || _cod_movimentacao
+			                                                 || ','
+			                                                 || _conta.numero_conta
+			                                                 || ','
+			                                                 || valor);
 		end if;
 	else
 		raise exception 'Numero da conta ou senha incorreta';
@@ -103,8 +105,10 @@ begin
 
 				perform insert_generico('partes_movimentacao', 'default,'
 				                                                 || _cod_movimentacao
+				                                                 || ','
 				                                                 || _conta.numero_conta
-				                                                 || valor * -1);
+				                                                 || ','
+				                                                 || valor);
 
 			end if;
 		else
@@ -130,7 +134,7 @@ begin
 
 	  select * into _conta_caridosa from conta where numero_conta = numero_conta_caridosa;
 		select numero_conta into _cod_conta_sortuda from conta where numero_conta = numero_conta_sortuda;
-		select cod_tipo_movimentacao from tipo_movimentacao where descricao_tipo_movimentacao = 'Transferencia';
+		select cod_tipo_movimentacao into _cod_tipo_movimentacao from tipo_movimentacao where descricao_tipo_movimentacao = 'Transferencia';
 
 		if valor <= 0 then
 				raise exception 'Você não pode transferir valores negativos ou nulos';
@@ -142,8 +146,18 @@ begin
 		update conta set saldo = saldo - valor where numero_conta = numero_conta_caridosa;
 
 		insert into movimentacao values (default, _cod_tipo_movimentacao, default) returning cod_movimentacao into _cod_movimentacao;
-		insert into partes_movimentacao values (default, _cod_movimentacao, _conta_caridosa.numero_conta, valor * -1);
-		insert into partes_movimentacao values (default, _cod_movimentacao, _cod_conta_sortuda, valor);
+		perform insert_generico('partes_movimentacao', 'default,'
+				                                                 || _cod_movimentacao
+				                                                 || ','
+				                                                 || _conta_caridosa.numero_conta
+				                                                 || ','
+				                                                 || valor * -1);
+		perform insert_generico('partes_movimentacao', 'default,'
+																														 || _cod_movimentacao
+																														 || ','
+																														 || _cod_conta_sortuda
+																														 || ','
+																														 || valor);
 
 	else
 	  raise exception 'Numero da conta ou senha incorreta';
@@ -207,10 +221,9 @@ returns void as $$
 
 			select * into _conta from conta where numero_conta = numero_da_conta;
 			select cod_emprestimo into _cod_emprestimo from emprestimo where numero_conta = numero_da_conta and data = (select min(data) from emprestimo where numero_conta = numero_da_conta);
-			perform atualiza_emprestimo(_cod_emprestimo);
 			select * into _parcela from parcela where codigo_emprestimo = _cod_emprestimo and data_pagamento_parcela = (select min(data_pagamento_parcela) from parcela where codigo_emprestimo = _cod_emprestimo);
 
-      if _parcela.data_pagamento_parcela > current_date then
+      if _parcela.data_pagamento_parcela < current_date then
         raise notice 'Parcela atrasada';
         if nome_func = '' then
           raise exception 'Parcelas atrasadas precisam ser pagas junto com o funcionario';
@@ -220,6 +233,8 @@ returns void as $$
             if _conta.cod_agencia != _funcionario.cod_agencia then
               raise exception 'Funcionario precisa ser da mesma agencia';
             end if;
+						perform atualiza_emprestimo(_cod_emprestimo);
+						select * into _parcela from parcela where cod_parcela = _parcela.cod_parcela;
 
           else
             raise exception 'Funcionario não existe';
@@ -243,6 +258,8 @@ returns void as $$
 	end;
 $$ language plpgsql;
 
+select extract(days from (current_date - current_date));
+select current_date::date - '2019-02-10'::date;
 
 create or replace function atualiza_emprestimo(cod_emprestimo int)
 	returns void as $$
@@ -252,35 +269,77 @@ declare
 begin
 	for parcelita in (select * from parcela where codigo_emprestimo = cod_emprestimo) loop
 		if parcelita.data_pagamento_parcela < current_date then
-			select extract(days from (current_date - parcelita.data_pagamento_parcela)) into dias_atrasada;
-			update parcela set valor_parcela = valor_parcela * (1 +(0.01 * dias_atrasada)), data_pagamento_parcela = current_date where cod_parcela = parcelita.cod_parcela;
+			select current_date::date - parcelita.data_pagamento_parcela::date into dias_atrasada;
+			update parcela set valor_parcela = (valor_parcela * ((0.01 * dias_atrasada) + 1)), data_pagamento_parcela = current_date where cod_parcela = parcelita.cod_parcela;
 		end if;
 	end loop;
 end $$ language plpgsql;
 
-drop function atualiza_emprestimo(codigo_emprestimo int);
 
+create or replace function extrato(codigo_conta int, senha_da_conta int)
+returns table (descricao varchar(30), valor float) as $$
+  begin
+		if exists(select * from conta where numero_conta = codigo_conta and senha = senha_da_conta) then
+			if exists(select * from partes_movimentacao natural join movimentacao natural join tipo_movimentacao where numero_conta = codigo_conta) then
+				return query select descricao_tipo_movimentacao, partes_movimentacao.valor from partes_movimentacao natural join movimentacao natural join tipo_movimentacao where numero_conta = codigo_conta;
+
+			else
+			  raise exception 'Não há transações';
+			end if;
+
+		else
+		  raise exception 'Senha ou conta incorreta';
+		end if;
+	end $$ language plpgsql;
+
+drop function extrato(codigo_conta int, senha_da_conta int);
 
 ---Testes
-
+select extrato(7,123);
+-- cpf, nome
 insert into cliente values ('123.123.123-45', 'Micael');
+-- cod, nome
 insert into agencia values (default, 'Codó');
+-- cod, nome, limite saque, porcentagem
 insert into tipo_conta values (default, 'Corrente', 1, 1);
+-- cod, cpf, senha, saldo, limite emprestimo*, tipo conta, agencia, saldo*
 insert into conta values (default, '123.123.123-45', 123, default, 1, 1, 10);
+-- cod, descrição
 insert into tipo_movimentacao values (default, 'Saque');
 insert into tipo_movimentacao values (default, 'Deposito');
 insert into tipo_movimentacao values (default, 'Transferencia');
-
+-- cod, nome, agencia
 insert into funcionario values (default, 'Daniel', 1);
-
+-- cod, descrição, limite parcela, taxa
 insert into tipo_emprestimo values (default, 'Consiguinado', 8, 30);
+-- cod, data de pagamento, valor, emprestimo1
+insert into parcela values (default,  current_date - 10,  50, 1);
 
-insert into parcela values (default,  current_date - 10,  30, 1);
 
-select depositar(4000, 1);
-select sacar(10,'ABCDEF',123);
-select fazer_emprestimo(500, 1, 123, 'Consiguinado', 5);
-select pagar_emprestimo(1, 123);
+select * from conta
+select * from movimentacao
+select * from partes_movimentacao
+
+-- valor, numero da conta
+select depositar(4000, 7);
+select * from conta;
+-- valor, numero da conta, senha
+select sacar(4000,7,123);
+select * from conta;
+-- nome, cpf, senha, tipo da conta, agencia, funcionario
+select criar_conta('Filipe', '066.018.183-56', 123, 'Corrente', 'teste', 'Daniel');
+select * from conta;
+-- numero_conta1 , senha_conta1, numero_conta2, valor
+select transferir(7,123,8,5);
+select * from conta;
+
+-- valor do emprestimo, numero conta, senha, tipo emprestimo, quant parcela
+select fazer_emprestimo(500, 8, 123, 'Consiguinado', 5);
+select * from conta
+select * from emprestimo
+select * from parcela
+
+select pagar_emprestimo(8, 123, 'Daniel');
 
 delete from conta where numero_conta = numero_conta;
 delete from cliente where cpf = cpf;

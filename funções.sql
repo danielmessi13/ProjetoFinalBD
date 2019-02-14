@@ -1,5 +1,4 @@
-﻿select criar_conta('Filipe', '123.123.123-46', 123, 'Corrente', 'Codó', 'Daniel');
-
+﻿
 create or replace function criar_conta (nome varchar(30), cpf varchar(14), senha_da_conta int, descricao_do_tipo_conta varchar(40), nome_da_agencia text, nome_do_funcionario varchar(40))
 returns void as $$
   declare
@@ -8,7 +7,7 @@ returns void as $$
     _funcionario record;
   begin
 		if exists(select * from funcionario where nome_funcionario = nome_do_funcionario) then
-			select * into _funcionario from funcionario where nome_funcionario=  nome_do_funcionario;
+			select * into _funcionario from funcionario where nome_funcionario =  nome_do_funcionario;
 		else
 			raise exception 'Funcionario não cadastrado';
 		end if;
@@ -25,8 +24,20 @@ returns void as $$
       raise exception 'tipo de conta inexistente';
     end if;
     if _funcionario.cod_agencia = _agencia.cod_agencia then
-      insert into cliente values (cpf, nome);
-			insert into conta values (default , cpf, senha_da_conta, default, _cod_tipo_conta, _agencia.cod_agencia);
+      perform insert_generico('cliente', ''''
+                                        || cpf
+                                        || ''', '''
+                                        || nome
+                                        || '''');
+			perform insert_generico('conta', 'default,'''
+			                                || cpf
+			                                || ''','
+			                                || senha_da_conta
+			                                || ',default,'
+			                                || _cod_tipo_conta
+			                                || ','
+			                                || _agencia.cod_agencia
+			                                || ',default');
 		ELSE
 		  RAISE exception 'funcionario não altorizado';
 		end if;
@@ -36,57 +47,19 @@ returns void as $$
 $$ language plpgsql;
 
 
-
-create or replace function sacar(valor int, numero_da_conta int, senha_da_conta int)
-returns void as $$
-declare
-	_conta record;
-	_cod_tipo_movimentacao int;
-  _cod_movimentacao int;
-begin 
-	if exists(select * from conta where numero_conta = numero_da_conta and senha = senha_da_conta) then
-	  select cod_tipo_movimentacao into _cod_tipo_movimentacao from tipo_movimentacao where descricao_tipo_movimentacao ilike 'Saque';
-		if (select count(*) from partes_movimentacao natural join movimentacao where cod_tipo_movimentacao = _cod_tipo_movimentacao and numero_conta = numero_da_conta and data = current_date) < 4 then
-			select * into _conta from conta where numero_conta = numero_da_conta and senha = senha_da_conta;
-			if valor <= 0 then
-				raise exception 'Você não pode sacar valores negativos ou nulos';
-			elsif _conta.saldo - valor < 0 then
-				raise exception 'Você não tem saldo suficiente pra sacar essa quantidade';
-			else
-				update conta set saldo = saldo - valor where numero_conta = numero_da_conta and senha = senha_da_conta;
-				insert into movimentacao values(default,
-																				_cod_tipo_movimentacao,
-																				default) returning cod_movimentacao into _cod_movimentacao;
-
-				insert into partes_movimentacao values (default,
-																								_cod_movimentacao,
-																								_conta.numero_conta,
-																								valor * -1);
-
-			end if;
-		else
-		  raise exception 'numero maximo de saques exedido';
-		end if;
-	else
-		raise exception 'Numero da conta ou senha incorreta';
-	end if;
-
-end $$ language plpgsql;
-
-
 create or replace function depositar(valor int, numero_da_conta int)
 returns void as $$
 declare
 	_conta record;
 	_cod_tipo_movimentacao int;
   _cod_movimentacao int;
-begin 
+begin
 	if exists(select * from conta where numero_conta = numero_da_conta) then
 		select cod_tipo_movimentacao into _cod_tipo_movimentacao from tipo_movimentacao
 		where descricao_tipo_movimentacao ilike 'Deposito';
 
 		select * into _conta from conta where numero_conta = numero_da_conta;
-		
+
 		if valor <= 0 then
 			raise exception 'Você não pode depositar valores negativos ou nulos';
 		else
@@ -105,6 +78,44 @@ begin
 	end if;
 
 end $$ language plpgsql;
+
+
+create or replace function sacar(valor int, numero_da_conta int, senha_da_conta int)
+returns void as $$
+declare
+	_conta record;
+	_cod_tipo_movimentacao int;
+  _cod_movimentacao int;
+begin 
+	if exists(select * from conta where numero_conta = numero_da_conta and senha = senha_da_conta) then
+	  select cod_tipo_movimentacao into _cod_tipo_movimentacao from tipo_movimentacao where descricao_tipo_movimentacao ilike 'Saque';
+		select * into _conta from conta natural join tipo_conta where numero_conta = numero_da_conta and senha = senha_da_conta;
+		if (select count(*) from partes_movimentacao natural join movimentacao where cod_tipo_movimentacao = _cod_tipo_movimentacao and numero_conta = numero_da_conta and data = current_date) < _conta.limite_de_saque then
+			if valor <= 0 then
+				raise exception 'Você não pode sacar valores negativos ou nulos';
+			elsif _conta.saldo - valor < 0 then
+				raise exception 'Você não tem saldo suficiente pra sacar essa quantidade';
+			else
+				update conta set saldo = saldo - valor where numero_conta = numero_da_conta and senha = senha_da_conta;
+				insert into movimentacao values(default,
+																				_cod_tipo_movimentacao,
+																				default) returning cod_movimentacao into _cod_movimentacao;
+
+				perform insert_generico('partes_movimentacao', 'default,'
+				                                                 || _cod_movimentacao
+				                                                 || _conta.numero_conta
+				                                                 || valor * -1);
+
+			end if;
+		else
+		  raise exception 'numero maximo de saques exedido';
+		end if;
+	else
+		raise exception 'Numero da conta ou senha incorreta';
+	end if;
+
+end $$ language plpgsql;
+
 
 create or replace function transferir(numero_conta_caridosa int, senha_conta_caridosa int, numero_conta_sortuda int, valor float)
 returns void as $$
@@ -242,7 +253,6 @@ begin
 	for parcelita in (select * from parcela where codigo_emprestimo = cod_emprestimo) loop
 		if parcelita.data_pagamento_parcela < current_date then
 			select extract(days from (current_date - parcelita.data_pagamento_parcela)) into dias_atrasada;
-			raise notice '%', dias_atrasada;
 			update parcela set valor_parcela = valor_parcela * (1 +(0.01 * dias_atrasada)), data_pagamento_parcela = current_date where cod_parcela = parcelita.cod_parcela;
 		end if;
 	end loop;
